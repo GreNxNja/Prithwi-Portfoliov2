@@ -815,6 +815,99 @@ body:has(.pick-cursor:hover) .cursor-ring {
   }
 }
 
+/* ---------------------------------------------------------------------- */
+/* Phones                                                                  */
+/* ---------------------------------------------------------------------- */
+
+/*
+ * Keyed on the pointer, not a width, so a narrow desktop window keeps the full
+ * treatment and a big phone doesn't.
+ *
+ * The expensive things here are the full-viewport blurs. `.backdrop-sweep` is
+ * a conic gradient inset -40% — half again the size of the screen — under a
+ * 60px blur, rotating continuously; every frame of that is a full-screen
+ * composite a mobile GPU does not have spare. The same goes for animating
+ * background-position on background-clip:text across a 9rem headline. None of
+ * it survives being run at 20fps anyway, so it goes, and the layers that stay
+ * are the ones that hold the mood: the glow, the vignette, the grain.
+ */
+@media (hover: none) and (pointer: coarse) {
+  /* No cursor to follow. ambience.ts stops writing --mx/--my to match. */
+  .backdrop-spot {
+    display: none;
+  }
+
+  /* Rotating a blurred conic gradient over the whole screen, forever. */
+  .backdrop-sweep {
+    display: none;
+  }
+
+  /* Keep the glow — it carries --energy — but stop it drifting, and cut the
+     blur radius, which is what actually costs. */
+  .backdrop-glow {
+    animation: none;
+    filter: blur(8px);
+  }
+
+  /* A repeating 3px gradient over the full viewport, for a texture that is
+     invisible at phone pixel densities. */
+  .backdrop-scan {
+    display: none;
+  }
+
+  /* Repaints the headline every frame to move a highlight across it. */
+  .sheen {
+    animation: none;
+    background: none;
+    color: var(--color-ink);
+    -webkit-text-fill-color: var(--color-ink);
+  }
+
+  /* Blurring text in and out on every reveal down the page is the single
+     jankiest thing on a phone. The lift and fade alone read the same. */
+  [data-reveal] {
+    filter: none !important;
+    transition:
+      opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .lift {
+    animation-name: lift-flat;
+  }
+
+  /* backdrop-filter forces the compositor to re-sample everything behind the
+     element on every frame it moves. */
+  .quiet-btn {
+    backdrop-filter: none;
+  }
+
+  /*
+   * Small mono labels are the house style, and 16px of line box is nowhere
+   * near a fingertip. This grows the *hit* area without touching the type or
+   * the layout — an invisible pseudo-element, so nothing reflows and the
+   * design is unchanged. The element must already be positioned; --tap-y is
+   * tuned per use where neighbours are close enough to collide.
+   */
+  .tap::after {
+    content: '';
+    position: absolute;
+    inset: calc(var(--tap-y, 12px) * -1) calc(var(--tap-x, 10px) * -1);
+  }
+}
+
+/* .lift without the blur. */
+@keyframes lift-flat {
+  from {
+    transform: translateY(18px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
 /* Film grain. Dark screens look plastic without it. */
 body::after {
   content: '';

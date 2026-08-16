@@ -143,7 +143,7 @@ function Home() {
             <Resume />
             <a
               href="#setlist"
-              className="wipe font-mono text-[0.65rem] tracking-[0.2em] text-muted uppercase hover:text-ember"
+              className="wipe tap relative font-mono text-[0.65rem] tracking-[0.2em] text-muted uppercase hover:text-ember"
             >
               See the setlist
             </a>

@@ -145,7 +145,7 @@ export function Setlist() {
                           href={track.repo}
                           target="_blank"
                           rel="noreferrer"
-                          className="wipe inline-flex items-center gap-2 font-mono text-xs tracking-[0.15em] text-ember uppercase"
+                          className="wipe tap relative inline-flex items-center gap-2 font-mono text-xs tracking-[0.15em] text-ember uppercase"
                         >
                           Source <span aria-hidden>↗</span>
                         </a>
@@ -155,7 +155,7 @@ export function Setlist() {
                           href={track.awardHref}
                           target="_blank"
                           rel="noreferrer"
-                          className="wipe inline-flex items-center gap-2 font-mono text-xs tracking-[0.15em] text-ember uppercase"
+                          className="wipe tap relative inline-flex items-center gap-2 font-mono text-xs tracking-[0.15em] text-ember uppercase"
                         >
                           ★ The win <span aria-hidden>↗</span>
                         </a>

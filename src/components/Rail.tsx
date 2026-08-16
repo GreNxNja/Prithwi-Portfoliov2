@@ -94,7 +94,7 @@ export function Rail() {
           type="button"
           onClick={toggle}
           aria-pressed={quiet}
-          className="flex items-center gap-2 font-mono text-[0.65rem] tracking-[0.2em] text-muted uppercase transition-colors hover:text-ember"
+          className="tap relative flex items-center gap-2 font-mono text-[0.65rem] tracking-[0.2em] text-muted uppercase transition-colors hover:text-ember"
         >
           <span
             className={`inline-block h-1.5 w-1.5 rounded-full transition-all ${

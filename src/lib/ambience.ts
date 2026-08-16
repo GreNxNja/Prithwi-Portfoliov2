@@ -1,4 +1,5 @@
 import { getAnalyser } from '#/lib/audio'
+import { isLowPower } from '#/lib/device'
 import { onFrame } from '#/lib/frame'
 
 /**
@@ -43,11 +44,17 @@ export function startAmbience() {
   let targetX = 0.5
   let targetY = 0.4
 
+  // No cursor on a touch device, so there is nothing for the spotlight to
+  // follow — skip the listener and the two custom properties entirely rather
+  // than writing values every frame that never change. The CSS drops the
+  // spotlight layer on the same query.
+  const tracks = !isLowPower()
+
   const onMove = (e: PointerEvent) => {
     targetX = e.clientX / window.innerWidth
     targetY = e.clientY / window.innerHeight
   }
-  window.addEventListener('pointermove', onMove, { passive: true })
+  if (tracks) window.addEventListener('pointermove', onMove, { passive: true })
 
   const stop = onFrame((dt) => {
     const analyser = getAnalyser()
@@ -77,22 +84,23 @@ export function startAmbience() {
     scroll += (next - scroll) * Math.min(1, dt * 6)
     currentScroll = scroll
 
-    // Slower than the scroll easing on purpose: the light lags the hand.
-    const lag = Math.min(1, dt * 3.5)
-    mx += (targetX - mx) * lag
-    my += (targetY - my) * lag
-
     root.style.setProperty(
       '--energy',
       (calm ? target * 0.3 : energy).toFixed(4),
     )
     root.style.setProperty('--scroll', scroll.toFixed(4))
+
+    if (!tracks) return
+    // Slower than the scroll easing on purpose: the light lags the hand.
+    const lag = Math.min(1, dt * 3.5)
+    mx += (targetX - mx) * lag
+    my += (targetY - my) * lag
     root.style.setProperty('--mx', mx.toFixed(4))
     root.style.setProperty('--my', my.toFixed(4))
   })
 
   return () => {
-    window.removeEventListener('pointermove', onMove)
+    if (tracks) window.removeEventListener('pointermove', onMove)
     stop()
   }
 }

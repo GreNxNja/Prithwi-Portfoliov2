@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { pluck, wake } from '#/lib/audio'
+import { isLowPower } from '#/lib/device'
 import { onFrame } from '#/lib/frame'
 import {
   STRING_BOTTOM,
@@ -12,10 +14,6 @@ import {
 
 /** How many modes of the standing wave we bother to draw. */
 const MODES = 4
-const SEGMENTS = 120
-/** Afterimages behind a moving string. This is why it reads as blur, not a wire. */
-const TRAILS = 3
-const MAX_SPARKS = 130
 
 /**
  * Catch radius and pull limit are derived from the gap between strings, not
@@ -80,6 +78,24 @@ export function Instrument() {
 
     const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
+    /*
+     * The per-frame budget, sized to the device.
+     *
+     * At the desktop settings this loop strokes six strings three times over at
+     * 120 segments each, every one of them with a shadowBlur — and canvas
+     * shadows are the single most expensive thing here, since the whole path
+     * gets rasterised twice and blurred. That is fine on a laptop and is not
+     * fine on a phone. Dropping to one pass at 64 segments with no shadow keeps
+     * the shape and the motion; what's lost is the glow bloom, which a phone
+     * was rendering at a stuttering frame rate anyway.
+     */
+    const lean = isLowPower()
+    /** Afterimages behind a moving string — why it reads as blur, not a wire. */
+    const TRAILS = lean ? 1 : 3
+    const SEGMENTS = lean ? 64 : 120
+    const MAX_SPARKS = lean ? 36 : 130
+    const GLOW = !lean
+
     const strings: Array<StringState> = TUNING.map(() => ({
       amp: new Float32Array(MODES),
       clock: 0,
@@ -99,7 +115,9 @@ export function Instrument() {
     let pointer: { x: number; y: number } | null = null
 
     const resize = () => {
-      const dpr = Math.min(2, window.devicePixelRatio || 1)
+      // Phones ship 3x screens; rasterising this canvas at 3x is three times
+      // the fill for a difference nobody can see on a hairline stroke.
+      const dpr = Math.min(lean ? 1.5 : 2, window.devicePixelRatio || 1)
       // Read the canvas's own laid-out size and only ever write the backing
       // store. Writing style.width/height too would override the inset-0
       // stretch and quietly desync the strings from their DOM labels.
@@ -207,7 +225,10 @@ export function Instrument() {
         // Capture is a nicety — the window-level move/up listeners already
         // cover the pointer leaving the canvas.
       }
-      e.preventDefault()
+      // Only for a mouse or pen. On touch the browser owns this gesture until
+      // it decides whether the finger is scrolling, and preventing the default
+      // here fights that decision.
+      if (e.pointerType !== 'touch') e.preventDefault()
     }
 
     const onMove = (e: PointerEvent) => {
@@ -236,6 +257,17 @@ export function Instrument() {
       held = -1
     }
 
+    /**
+     * The browser decided this gesture was a scroll and took the pointer away.
+     * Drop the string silently — releasing it here would mean every swipe that
+     * happened to start on the strings played a note.
+     */
+    const onCancel = () => {
+      if (held === -1) return
+      strings[held].grab = null
+      held = -1
+    }
+
     const onLeave = () => {
       pointer = null
     }
@@ -254,7 +286,7 @@ export function Instrument() {
     canvas.addEventListener('pointerdown', onDown)
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
-    window.addEventListener('pointercancel', onUp)
+    window.addEventListener('pointercancel', onCancel)
     canvas.addEventListener('pointerleave', onLeave)
     window.addEventListener('keydown', onKey)
 
@@ -311,7 +343,7 @@ export function Instrument() {
         const heat = Math.max(energy, s.glow * 0.7)
 
         // The bloom where the pick landed.
-        if (s.glow > 0.01) {
+        if (GLOW && s.glow > 0.01) {
           const r = 26 + (1 - s.glow) * 90
           const bloom = c.createRadialGradient(
             s.hitX,
@@ -368,7 +400,7 @@ export function Instrument() {
               : `rgba(${EMBER[0]},${EMBER[1]},${EMBER[2]},${(heat * fade).toFixed(3)})`
           c.lineWidth = def.gauge * (k === 0 ? 1 : 0.8)
           c.lineCap = 'round'
-          if (k === 0 && heat > 0.02) {
+          if (GLOW && k === 0 && heat > 0.02) {
             c.shadowColor = `rgba(255,159,69,${heat * 0.85})`
             c.shadowBlur = 10 + heat * 30
           }
@@ -409,7 +441,7 @@ export function Instrument() {
       canvas.removeEventListener('pointerdown', onDown)
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
-      window.removeEventListener('pointercancel', onUp)
+      window.removeEventListener('pointercancel', onCancel)
       canvas.removeEventListener('pointerleave', onLeave)
       window.removeEventListener('keydown', onKey)
     }
@@ -417,9 +449,16 @@ export function Instrument() {
 
   return (
     <div ref={wrapRef} className="absolute inset-0">
+      {/*
+        pan-y, not none. The strings fill half the first screen on a phone, and
+        touch-action: none there makes the whole landing view a dead zone you
+        cannot swipe past. This hands vertical panning back to the browser —
+        so the page scrolls — while horizontal movement still reaches the
+        canvas for bending a string along its length. A tap still plucks.
+      */}
       <canvas
         ref={canvasRef}
-        className="pick-cursor absolute inset-0 h-full w-full touch-none"
+        className="pick-cursor absolute inset-0 h-full w-full touch-pan-y"
       />
 
       {TUNING.map((s, i) => (
@@ -432,8 +471,14 @@ export function Instrument() {
             pluck(s.freq, { velocity: 0.5, position: 0.4 })
             emitPluck(i, { velocity: 0.5, position: 0.4 })
           }}
-          style={{ top: `${stringY(i) * 100}%` }}
-          className="group absolute right-[3vw] flex -translate-y-1/2 items-baseline gap-3 font-mono text-xs tracking-widest text-muted transition-all duration-300 hover:-translate-x-1 hover:text-ember focus-visible:text-ember focus-visible:outline-none sm:right-[5vw]"
+          // 11px of margin each side: the strings sit ~25px apart here, so
+          // this is the most hit area the labels can take without two of them
+          // overlapping. Already absolute, so the pseudo-element has something
+          // to position against.
+          style={
+            { top: `${stringY(i) * 100}%`, '--tap-y': '11px' } as CSSProperties
+          }
+          className="group tap absolute right-[3vw] flex -translate-y-1/2 items-baseline gap-3 font-mono text-xs tracking-widest text-muted transition-all duration-300 hover:-translate-x-1 hover:text-ember focus-visible:text-ember focus-visible:outline-none sm:right-[5vw]"
         >
           <span className="hidden tabular-nums opacity-50 group-hover:opacity-100 sm:inline">
             {s.index}
@@ -445,14 +490,22 @@ export function Instrument() {
         </a>
       ))}
 
+      {/* Two instructions, because the gesture genuinely differs: a mouse can
+          pull a string off its rest position, a finger can't without the page
+          scrolling out from under it. CSS picks, so there's no hydration gap. */}
       <p
-        className={`pointer-events-none absolute bottom-4 left-[5vw] font-mono text-[0.7rem] tracking-[0.2em] text-muted uppercase transition-opacity duration-700 ${
+        className={`pointer-events-none absolute bottom-4 left-[5vw] font-mono text-[0.65rem] tracking-[0.2em] text-muted uppercase transition-opacity duration-700 sm:text-[0.7rem] ${
           touched ? 'opacity-0' : 'opacity-100'
         }`}
       >
-        <span className="text-ember">↔</span> drag a string, then let go
-        <span className="mx-3 opacity-30">·</span>
-        or press <span className="text-ember">1–6</span>
+        <span className="hidden [@media(hover:hover)and(pointer:fine)]:inline">
+          <span className="text-ember">↔</span> drag a string, then let go
+          <span className="mx-3 opacity-30">·</span>
+          or press <span className="text-ember">1–6</span>
+        </span>
+        <span className="[@media(hover:hover)and(pointer:fine)]:hidden">
+          <span className="text-ember">♪</span> tap a string
+        </span>
       </p>
     </div>
   )

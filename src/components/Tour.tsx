@@ -88,7 +88,7 @@ export function Tour() {
                       href={a.href}
                       target="_blank"
                       rel="noreferrer"
-                      className="wipe inline-flex items-baseline gap-1.5 text-[0.95rem] text-ink transition-colors group-hover:text-ember"
+                      className="wipe tap relative inline-flex items-baseline gap-1.5 text-[0.95rem] text-ink transition-colors group-hover:text-ember"
                     >
                       {a.title}
                       <span aria-hidden className="text-[0.7rem]">
