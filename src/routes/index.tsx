@@ -1,15 +1,18 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import type { ReactNode } from 'react'
+import { Frame } from '#/components/Frame'
 import { Instrument } from '#/components/Instrument'
+import { Marquee } from '#/components/Marquee'
 import { Pedalboard } from '#/components/Pedalboard'
 import { Rail } from '#/components/Rail'
+import { Resume } from '#/components/Resume'
 import { Reveal } from '#/components/Reveal'
 import { Scope } from '#/components/Scope'
 import { Scramble } from '#/components/Scramble'
 import { Setlist } from '#/components/Setlist'
 import { Tour } from '#/components/Tour'
-import { ABOUT, FACTS, ME, SIGNALS } from '#/data/content'
+import { ABOUT, FACTS, ME, SIGNALS, TICKER } from '#/data/content'
 import { startAmbience } from '#/lib/ambience'
 import { strum, wake } from '#/lib/audio'
 import { TUNING, emitPluck } from '#/lib/tuning'
@@ -38,8 +41,14 @@ function Section({
       id={id}
       ref={ref}
       data-seen={seen ? 'true' : 'false'}
-      className="edge scroll-mt-20 px-[5vw] py-20 sm:py-32 lg:pl-[9vw]"
+      // `isolate` keeps the ghosted numeral's negative z-index inside this
+      // section, so it sits under the heading but still over the backdrop.
+      className="edge relative isolate scroll-mt-20 px-[5vw] py-20 sm:py-32 lg:pl-[9vw]"
     >
+      <span aria-hidden className="numeral pointer-events-none select-none">
+        {index}
+      </span>
+
       <Reveal>
         <header className="flex items-baseline gap-3 sm:gap-4">
           <span className="font-mono text-xs text-ember tabular-nums">
@@ -48,7 +57,13 @@ function Section({
           <h2 className="font-mono text-xs tracking-[0.22em] text-muted uppercase sm:tracking-[0.28em]">
             <Scramble text={title} />
           </h2>
-          <span aria-hidden className="h-px flex-1 bg-line" />
+          <span aria-hidden className="hairline flex-1" />
+          <span
+            aria-hidden
+            className="font-mono text-[0.55rem] tracking-[0.25em] text-muted/40 uppercase"
+          >
+            {ME.handle}
+          </span>
         </header>
         {lead && (
           <p className="mt-7 max-w-xl text-base text-muted sm:mt-8 sm:text-lg">
@@ -81,6 +96,7 @@ function Home() {
 
   return (
     <main>
+      <Frame />
       <Rail />
 
       {/* ---------------------------------------------------------------- */}
@@ -96,26 +112,45 @@ function Home() {
           </span>
         </header>
 
-        <div className="px-[5vw] pt-[6vh] sm:pt-[7vh] lg:pl-[9vw]">
-          <h1 className="signature text-[clamp(3.2rem,13vw,9.5rem)]">
+        <div className="px-[5vw] pt-[3vh] sm:pt-[4vh] lg:pl-[9vw]">
+          <h1 className="signature text-[clamp(3.2rem,12vw,9rem)]">
             <span className="rise">
-              <span style={{ animationDelay: '150ms' }}>Prithwijit</span>
+              <span className="sheen" style={{ animationDelay: '150ms' }}>
+                Prithwijit
+              </span>
             </span>
-            <span className="rise -mt-[0.12em] block pl-[0.12em]">
-              <span className="text-muted" style={{ animationDelay: '280ms' }}>
+            <span className="rise -mt-[0.16em] block pl-[0.06em]">
+              <span
+                className="bg-gradient-to-b from-muted to-muted/35 bg-clip-text text-transparent"
+                style={{ animationDelay: '280ms' }}
+              >
                 Ghosh
               </span>
             </span>
           </h1>
-          <p className="rise mt-6 max-w-md text-lg leading-snug text-ink/75 sm:mt-7 sm:text-2xl">
+
+          <p className="rise mt-5 max-w-md text-lg leading-snug text-ink/75 sm:mt-6 sm:text-2xl">
             <span style={{ animationDelay: '460ms' }}>
               Building sentient AI so I can enjoy my{' '}
               <span className="text-ember">guitar sessions</span> in peace.
             </span>
           </p>
+
+          <div
+            className="lift mt-6 flex flex-wrap items-center gap-5"
+            style={{ animationDelay: '620ms' }}
+          >
+            <Resume />
+            <a
+              href="#setlist"
+              className="wipe font-mono text-[0.65rem] tracking-[0.2em] text-muted uppercase hover:text-ember"
+            >
+              See the setlist
+            </a>
+          </div>
         </div>
 
-        <div className="relative mt-[4vh] min-h-[max(42vh,260px)] flex-1">
+        <div className="relative mt-[2vh] min-h-[max(30vh,210px)] flex-1">
           {/* The surname again, enormous and ghosted, for the strings to cross. */}
           <span
             aria-hidden
@@ -132,6 +167,9 @@ function Home() {
       </section>
 
       {/* ---------------------------------------------------------------- */}
+      <Marquee items={TICKER} />
+
+      {/* ---------------------------------------------------------------- */}
       <Section id="notes" index="01" title="Liner Notes">
         <div className="grid gap-12 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:gap-20">
           <div className="max-w-2xl space-y-7">
@@ -139,8 +177,10 @@ function Home() {
               <Reveal key={i} delay={i * 110}>
                 <p
                   className={
+                    // The opening paragraph carries the section, so it speaks
+                    // in the display serif — the same voice as the name.
                     i === 0
-                      ? 'text-2xl leading-snug text-ink sm:text-3xl'
+                      ? 'font-serif text-3xl leading-[1.15] text-ink sm:text-4xl'
                       : 'text-base leading-relaxed text-ink/70'
                   }
                 >
@@ -151,13 +191,17 @@ function Home() {
           </div>
 
           <Reveal delay={160}>
-            <dl className="h-fit border-t border-line font-mono text-xs">
-              {FACTS.map(([k, v]) => (
+            {/* A spec plate: its own surface, so the facts read as stamped on
+                something rather than floating in the page. */}
+            <dl className="surface h-fit rounded-xl border border-line px-5 py-1 font-mono text-xs">
+              {FACTS.map(([k, v], i) => (
                 <div
                   key={k}
-                  className="flex items-baseline justify-between gap-6 border-b border-line py-3.5"
+                  className={`group flex items-baseline justify-between gap-6 py-3.5 ${
+                    i < FACTS.length - 1 ? 'border-b border-line/70' : ''
+                  }`}
                 >
-                  <dt className="shrink-0 tracking-[0.15em] text-muted uppercase">
+                  <dt className="shrink-0 tracking-[0.15em] text-muted uppercase transition-colors duration-300 group-hover:text-ember">
                     {k}
                   </dt>
                   <dd className="text-right text-ink/80">{v}</dd>
@@ -201,8 +245,8 @@ function Home() {
       {/* ---------------------------------------------------------------- */}
       <Section id="encore" index="05" title="Encore">
         <Reveal>
-          <p className="max-w-3xl font-display text-3xl leading-tight font-medium tracking-tight sm:text-5xl">
-            Got something worth building?
+          <p className="max-w-3xl font-serif text-4xl leading-[1.05] sm:text-6xl">
+            Got something <em className="text-ember">worth</em> building?
           </p>
           <a
             ref={mailRef}
@@ -211,6 +255,13 @@ function Home() {
           >
             {ME.email}
           </a>
+
+          <div className="mt-9 flex flex-wrap items-center gap-x-5 gap-y-3">
+            <Resume />
+            <span className="font-mono text-[0.6rem] tracking-[0.15em] text-muted/70 uppercase">
+              or read the short version
+            </span>
+          </div>
         </Reveal>
 
         <Reveal delay={100}>
@@ -221,7 +272,7 @@ function Home() {
                   href={s.href}
                   target="_blank"
                   rel="noreferrer"
-                  className="group flex items-baseline gap-4 border-b border-line py-5 transition-colors hover:bg-white/[0.02] sm:gap-8"
+                  className="row-sweep group flex items-baseline gap-4 border-b border-line py-5 sm:gap-8"
                 >
                   <span className="w-8 font-mono text-[0.6rem] tracking-widest text-muted transition-colors group-hover:text-signal">
                     {s.band}
@@ -249,20 +300,30 @@ function Home() {
             ref={strumRef}
             type="button"
             onClick={openTuning}
-            className="magnetic rounded-full border border-line px-6 py-3 font-mono text-[0.7rem] tracking-[0.2em] text-muted uppercase hover:border-ember/60 hover:text-ember"
+            className="magnetic quiet-btn surface rounded-full border border-line px-6 py-3 font-mono text-[0.7rem] tracking-[0.2em] text-muted uppercase hover:border-ember/60 hover:text-ember"
           >
             ♪ Strum all six
           </button>
         </div>
 
-        <footer className="mt-24 flex flex-col gap-3 border-t border-line pt-8 font-mono text-[0.65rem] tracking-wide text-muted sm:flex-row sm:items-center sm:justify-between">
-          <span className="max-w-xl">
-            Strings are simulated, not sampled — Karplus-Strong synthesis and
-            the modal equation for a plucked string. No audio libraries.
+        <footer className="mt-24 border-t border-line pt-8">
+          {/* The name once more on the way out, set huge and nearly gone. */}
+          <span
+            aria-hidden
+            className="signature block bg-gradient-to-b from-ink/[0.07] to-transparent bg-clip-text text-[13vw] leading-[0.8] text-transparent select-none"
+          >
+            Prithwijit Ghosh
           </span>
-          <span className="shrink-0">
-            © {new Date().getFullYear()} — {ME.location}
-          </span>
+
+          <div className="mt-6 flex flex-col gap-3 font-mono text-[0.65rem] tracking-wide text-muted sm:flex-row sm:items-center sm:justify-between">
+            <span className="max-w-xl">
+              Strings are simulated, not sampled — Karplus-Strong synthesis and
+              the modal equation for a plucked string. No audio libraries.
+            </span>
+            <span className="shrink-0">
+              © {new Date().getFullYear()} — {ME.location}
+            </span>
+          </div>
         </footer>
       </Section>
     </main>

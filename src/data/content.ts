@@ -8,6 +8,25 @@ export const ME = {
   github: 'https://github.com/GreNxNja',
 }
 
+/**
+ * Served straight from public/, so the download is a static file hit with no
+ * route behind it. Replace the PDF in place and the link needs no change.
+ */
+export const RESUME = {
+  href: '/prithwijit-ghosh-resume.pdf',
+  filename: 'Prithwijit-Ghosh-Resume.pdf',
+}
+
+/** The strip that runs between movements. Read as one long ticker. */
+export const TICKER = [
+  'System Architecture',
+  'Platform Engineering',
+  'AI / ML',
+  'Kolkata, IN',
+  'Available for work',
+  'E A D G B E',
+]
+
 export const ABOUT = [
   `Computer science graduate working in system architecture, platform
    engineering and AI/ML. Right now that means building an enterprise ERP that
@@ -30,11 +49,18 @@ export const FACTS: Array<[string, string]> = [
   ['Tuning', 'E A D G B E'],
 ]
 
-export const AWARDS: Array<{ title: string; what: string; when: string }> = [
+export const AWARDS: Array<{
+  title: string
+  what: string
+  when: string
+  /** Where it was announced, if there's something public to point at. */
+  href?: string
+}> = [
   {
     title: 'AI Unite Hackathon — Winner',
     what: 'Epiphany, AI academic platform',
     when: 'Jun 2024',
+    href: 'https://www.linkedin.com/feed/update/urn:li:activity:7216804060543295488/',
   },
   {
     title: 'Smart India Hackathon — Runner-Up',
@@ -50,6 +76,8 @@ export type Track = {
   repo?: string
   when: string
   award?: string
+  /** The announcement behind the badge, shown in the expanded panel. */
+  awardHref?: string
   blurb: string
   detail: string
   stack: Array<string>
@@ -107,6 +135,8 @@ export const SETLIST: Array<Track> = [
     title: 'Epiphany',
     when: 'Jun 2024',
     award: 'AI Unite Hackathon Winner',
+    awardHref:
+      'https://www.linkedin.com/feed/update/urn:li:activity:7216804060543295488/',
     blurb: 'An AI learning platform that plans the route for you',
     detail: `Study-path optimisation over what a student actually knows, plus an
       NLP chatbot built on Transformers to answer in context. Architected to hold
@@ -209,9 +239,11 @@ export const RIG: Array<{ row: string; pedals: Array<Pedal> }> = [
   },
 ]
 
+/* Kept in step with the résumé PDF — same list, same order, same issuers. */
 export const CERTS = [
   'Anthropic — Model Context Protocol (2026)',
-  'IBM — Data Science Professional (2025)',
+  'Coursera (IBM) — Data Science Professional (2025)',
+  'Udemy — Master in Artificial Intelligence (2025)',
   'Stanford — Machine Learning (2024)',
   'IIT Bombay — e-Yantra Robotics with VLSI (2023)',
 ]
@@ -241,11 +273,5 @@ export const SIGNALS: Array<Signal> = [
     where: 'prithwiblogs.vercel.app',
     href: 'https://prithwiblogs.vercel.app',
     band: 'LW',
-  },
-  {
-    label: 'Bento',
-    where: 'bento.me/grenxnja',
-    href: 'https://bento.me/grenxnja',
-    band: 'MW',
   },
 ]

@@ -5,7 +5,10 @@ import { useEffect, useRef } from 'react'
  * leaves. Smoothing is a CSS transition on transform, so this only ever writes
  * one property and never runs a loop of its own.
  */
-export function useMagnetic<T extends HTMLElement>(strength = 0.3, radius = 130) {
+export function useMagnetic<T extends HTMLElement>(
+  strength = 0.3,
+  radius = 130,
+) {
   const ref = useRef<T>(null)
 
   useEffect(() => {
@@ -20,7 +23,8 @@ export function useMagnetic<T extends HTMLElement>(strength = 0.3, radius = 130)
       const box = el.getBoundingClientRect()
       const dx = e.clientX - (box.left + box.width / 2)
       const dy = e.clientY - (box.top + box.height / 2)
-      const near = Math.hypot(dx, dy) < radius + Math.max(box.width, box.height) / 2
+      const near =
+        Math.hypot(dx, dy) < radius + Math.max(box.width, box.height) / 2
 
       el.style.transform = near
         ? `translate3d(${(dx * strength).toFixed(2)}px, ${(dy * strength).toFixed(2)}px, 0)`

@@ -7,11 +7,28 @@ import { onFrame } from '#/lib/frame'
  *
  *   --energy  0–1, how loud the instrument is right now
  *   --scroll  0–1, progress down the page
+ *   --mx/--my 0–1, where the pointer is in the viewport
  *
  * The backdrop glow breathes on --energy, so the room genuinely lights up with
  * what you play rather than looping a canned animation. --scroll warms and
- * cools the same glow as you move between the human and machine halves.
+ * cools the same glow as you move between the human and machine halves, and
+ * the spotlight follows --mx/--my.
+ *
+ * The pointer is only sampled here, never applied on the event — writing it in
+ * the frame loop means a flood of pointermove events still costs one style
+ * recalculation per frame, and the easing below keeps the light trailing the
+ * cursor rather than snapping to it.
  */
+
+/**
+ * The eased scroll position, for the few readers that need the number itself
+ * rather than the custom property. Kept at module scope so nothing has to call
+ * getComputedStyle in a frame loop to read a value we already have in hand.
+ */
+let currentScroll = 0
+
+export const getScroll = () => currentScroll
+
 export function startAmbience() {
   if (typeof window === 'undefined') return () => {}
 
@@ -21,8 +38,18 @@ export function startAmbience() {
   let bins: Uint8Array | null = null
   let energy = 0
   let scroll = 0
+  let mx = 0.5
+  let my = 0.4
+  let targetX = 0.5
+  let targetY = 0.4
 
-  return onFrame((dt) => {
+  const onMove = (e: PointerEvent) => {
+    targetX = e.clientX / window.innerWidth
+    targetY = e.clientY / window.innerHeight
+  }
+  window.addEventListener('pointermove', onMove, { passive: true })
+
+  const stop = onFrame((dt) => {
     const analyser = getAnalyser()
     let target = 0
 
@@ -48,11 +75,24 @@ export function startAmbience() {
     const max = document.body.scrollHeight - window.innerHeight
     const next = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0
     scroll += (next - scroll) * Math.min(1, dt * 6)
+    currentScroll = scroll
+
+    // Slower than the scroll easing on purpose: the light lags the hand.
+    const lag = Math.min(1, dt * 3.5)
+    mx += (targetX - mx) * lag
+    my += (targetY - my) * lag
 
     root.style.setProperty(
       '--energy',
       (calm ? target * 0.3 : energy).toFixed(4),
     )
     root.style.setProperty('--scroll', scroll.toFixed(4))
+    root.style.setProperty('--mx', mx.toFixed(4))
+    root.style.setProperty('--my', my.toFixed(4))
   })
+
+  return () => {
+    window.removeEventListener('pointermove', onMove)
+    stop()
+  }
 }

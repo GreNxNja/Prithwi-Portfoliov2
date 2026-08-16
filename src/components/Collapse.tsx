@@ -35,6 +35,10 @@ export function Collapse({
       style={{ height: open ? height : 0, opacity: open ? 1 : 0 }}
       // Everything starts closed, so the server's height:0 matches the client.
       aria-hidden={!open}
+      // aria-hidden alone would leave the links inside reachable by Tab —
+      // announced to no one and scrolling an invisible panel into view. `inert`
+      // takes them out of the focus order for as long as the panel is shut.
+      inert={!open}
     >
       <div ref={inner}>{children}</div>
     </div>

@@ -61,19 +61,31 @@ export function Setlist() {
                 pluck(string.freq, { velocity: 0.22, position: 0.55 })
                 emitPluck(track.string, { velocity: 0.22, position: 0.55 })
               }}
-              className="group grid w-full grid-cols-[2.5rem_1fr] items-center gap-x-4 gap-y-2 py-6 text-left transition-colors hover:bg-white/[0.02] sm:grid-cols-[3rem_minmax(0,1fr)_9rem_4rem] sm:gap-x-6"
+              className="row-sweep group grid w-full grid-cols-[2.5rem_1fr] items-center gap-x-4 gap-y-2 py-6 text-left sm:grid-cols-[3rem_minmax(0,1fr)_9rem_4rem] sm:gap-x-6"
             >
-              <span className="self-start font-mono text-xs text-muted tabular-nums transition-colors group-hover:text-ember sm:self-center">
+              <span className="flex items-center gap-2 self-start font-mono text-xs text-muted tabular-nums transition-colors group-hover:text-ember sm:self-center">
+                {/* A rule that extends on hover, and stays extended while the
+                    track is open — the row's own state, in one mark. The two
+                    cases are separate class strings rather than one with an
+                    inline override, so nothing has to win a specificity fight. */}
+                <span
+                  aria-hidden
+                  className={
+                    expanded
+                      ? 'inline-block h-px w-3 bg-ember transition-all duration-500'
+                      : 'inline-block h-px w-0 bg-ember transition-all duration-500 group-hover:w-2'
+                  }
+                />
                 {track.no}
               </span>
 
               <span className="min-w-0">
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span className="font-display text-3xl leading-tight tracking-tight transition-colors group-hover:text-ember sm:text-4xl">
+                  <span className="font-display text-3xl leading-tight tracking-tight transition-all duration-300 group-hover:translate-x-1 group-hover:text-ember sm:text-4xl">
                     {track.title}
                   </span>
                   {track.award && (
-                    <span className="rounded-full border border-ember/40 px-2.5 py-0.5 font-mono text-[0.6rem] tracking-[0.1em] text-ember uppercase">
+                    <span className="rounded-full border border-ember/40 px-2.5 py-0.5 font-mono text-[0.6rem] tracking-[0.1em] text-ember uppercase shadow-[0_0_16px_-4px_var(--color-ember)]">
                       ★ {track.award}
                     </span>
                   )}
@@ -117,21 +129,38 @@ export function Setlist() {
                     {track.stack.map((s) => (
                       <span
                         key={s}
-                        className="rounded-full border border-line px-3 py-1 font-mono text-[0.65rem] tracking-wide text-muted transition-colors hover:border-ember/50 hover:text-ember"
+                        className="surface rounded-full border border-line px-3 py-1 font-mono text-[0.65rem] tracking-wide text-muted transition-colors hover:border-ember/50 hover:text-ember"
                       >
                         {s}
                       </span>
                     ))}
                   </div>
-                  {track.repo && (
-                    <a
-                      href={track.repo}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-6 inline-flex items-center gap-2 font-mono text-xs tracking-[0.15em] text-ember uppercase hover:underline hover:underline-offset-4"
-                    >
-                      Source <span aria-hidden>↗</span>
-                    </a>
+                  {/* The badge in the row above lives inside the toggle
+                      button, where a link can't go — so the announcement is
+                      linked here instead, alongside the source. */}
+                  {(track.repo || track.awardHref) && (
+                    <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2">
+                      {track.repo && (
+                        <a
+                          href={track.repo}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="wipe inline-flex items-center gap-2 font-mono text-xs tracking-[0.15em] text-ember uppercase"
+                        >
+                          Source <span aria-hidden>↗</span>
+                        </a>
+                      )}
+                      {track.awardHref && (
+                        <a
+                          href={track.awardHref}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="wipe inline-flex items-center gap-2 font-mono text-xs tracking-[0.15em] text-ember uppercase"
+                        >
+                          ★ The win <span aria-hidden>↗</span>
+                        </a>
+                      )}
+                    </div>
                   )}
                 </div>
 

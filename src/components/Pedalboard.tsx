@@ -1,13 +1,17 @@
 import { RIG } from '#/data/content'
 import { pluck, wake } from '#/lib/audio'
+import { usePointerLight } from '#/lib/usePointerLight'
 
 /** Semitones above a low E, so hovering the board is at least in key. */
 const SCALE = [0, 3, 5, 7, 10, 12, 15, 17]
 const note = (i: number) => 82.41 * 2 ** (SCALE[i % SCALE.length] / 12) * 2
 
 export function Pedalboard() {
+  // One listener for the whole board; each enclosure lights from within.
+  const boardRef = usePointerLight<HTMLDivElement>('[data-pedal]')
+
   return (
-    <div className="space-y-10">
+    <div ref={boardRef} className="space-y-10">
       {RIG.map((row, r) => (
         <div
           key={row.row}
@@ -28,6 +32,7 @@ export function Pedalboard() {
               <button
                 key={pedal.name}
                 type="button"
+                data-pedal
                 onMouseEnter={() => {
                   wake()
                   pluck(note(r * 3 + i), { velocity: 0.18, position: 0.35 })
@@ -36,21 +41,28 @@ export function Pedalboard() {
                   wake()
                   pluck(note(r * 3 + i), { velocity: 0.18, position: 0.35 })
                 }}
-                className="group relative w-[9.5rem] rounded-lg border border-line bg-surface px-4 pt-4 pb-3 text-left transition-all duration-200 hover:-translate-y-1 hover:border-ember/50 focus-visible:-translate-y-1 focus-visible:border-ember/50 focus-visible:outline-none"
+                className="group surface surface-light relative isolate w-[9.5rem] overflow-hidden rounded-xl border border-line bg-surface px-4 pt-4 pb-3 text-left transition-all duration-300 hover:-translate-y-1.5 hover:border-ember/50 hover:shadow-[0_14px_36px_-14px_var(--color-ember)] focus-visible:-translate-y-1.5 focus-visible:border-ember/50 focus-visible:outline-none"
               >
+                {/* A sheen across the enclosure, the way light catches an
+                    anodised box when you lean over the board. */}
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/[0.06] to-transparent transition-transform duration-700 group-hover:translate-x-full"
+                />
+
                 {/* The LED. */}
                 <span
                   aria-hidden
                   className={`absolute top-3 right-3 h-1.5 w-1.5 rounded-full transition-all duration-200 ${
                     pedal.hot
-                      ? 'bg-ember shadow-[0_0_8px_var(--color-ember)]'
+                      ? 'pulse bg-ember'
                       : 'bg-line group-hover:bg-ember group-hover:shadow-[0_0_8px_var(--color-ember)]'
                   }`}
                 />
                 {/* The knob. */}
                 <span
                   aria-hidden
-                  className="mb-3 block h-6 w-6 rounded-full border border-line bg-void transition-transform duration-300 group-hover:rotate-[135deg] group-focus-visible:rotate-[135deg]"
+                  className="mb-3 block h-6 w-6 rounded-full border border-line bg-void transition-transform duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover:rotate-[135deg] group-focus-visible:rotate-[135deg]"
                 >
                   <span className="mx-auto block h-2.5 w-px bg-muted" />
                 </span>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { RESUME } from '#/data/content'
 import { isMuted, pluck, setMuted, wake } from '#/lib/audio'
 import { TUNING, emitPluck } from '#/lib/tuning'
 
@@ -77,21 +78,35 @@ export function Rail() {
         ))}
       </nav>
 
-      <button
-        type="button"
-        onClick={toggle}
-        aria-pressed={quiet}
-        className="fixed top-5 right-[5vw] z-40 flex items-center gap-2 font-mono text-[0.65rem] tracking-[0.2em] text-muted uppercase transition-colors hover:text-ember"
-      >
-        <span
-          className="inline-block h-1.5 w-1.5 rounded-full transition-all"
-          style={{
-            background: quiet ? 'var(--color-line)' : 'var(--color-ember)',
-            boxShadow: quiet ? 'none' : '0 0 8px var(--color-ember)',
-          }}
-        />
-        {quiet ? 'muted' : 'live'}
-      </button>
+      <div className="fixed top-5 right-[5vw] z-40 flex items-center gap-5">
+        <a
+          href={RESUME.href}
+          download={RESUME.filename}
+          className="quiet-btn surface hidden items-center gap-2 rounded-full border border-line px-3.5 py-1.5 font-mono text-[0.6rem] tracking-[0.2em] text-muted uppercase backdrop-blur-md hover:border-ember/50 hover:text-ember sm:inline-flex"
+        >
+          <span aria-hidden className="drop">
+            ↓
+          </span>
+          Résumé
+        </a>
+
+        <button
+          type="button"
+          onClick={toggle}
+          aria-pressed={quiet}
+          className="flex items-center gap-2 font-mono text-[0.65rem] tracking-[0.2em] text-muted uppercase transition-colors hover:text-ember"
+        >
+          <span
+            className={`inline-block h-1.5 w-1.5 rounded-full transition-all ${
+              quiet ? '' : 'pulse'
+            }`}
+            style={{
+              background: quiet ? 'var(--color-line)' : 'var(--color-ember)',
+            }}
+          />
+          {quiet ? 'muted' : 'live'}
+        </button>
+      </div>
     </>
   )
 }

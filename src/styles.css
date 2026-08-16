@@ -1,7 +1,8 @@
 /* Self-hosted — no external font requests, no render-blocking third party. */
 @import '@fontsource-variable/instrument-sans/wght.css';
 @import '@fontsource-variable/jetbrains-mono/wght.css';
-@import '@fontsource/yellowtail/latin-400.css';
+@import '@fontsource/instrument-serif/latin-400.css';
+@import '@fontsource/instrument-serif/latin-400-italic.css';
 @import 'tailwindcss';
 
 @theme {
@@ -22,16 +23,20 @@
   --font-mono:
     'JetBrains Mono Variable', ui-monospace, 'SF Mono', 'Cascadia Code', Menlo,
     Consolas, monospace;
-  /* The name only. A 1930s brush script, the lettering vintage instrument
-     headstocks were signed with. */
-  --font-script: 'Yellowtail', 'Brush Script MT', cursive;
+  /* The name, and the few lines that speak in the same voice. Instrument
+     Serif is the display cut of the same superfamily as the body sans, so the
+     two are drawn by the same hand — high contrast, sharp, no novelty. */
+  --font-serif: 'Instrument Serif', 'Times New Roman', Georgia, serif;
 }
 
 /*
  * Written every frame from lib/ambience.ts:
  *   --energy  0–1, how loud the instrument is right now
  *   --scroll  0–1, progress down the page
- * Everything below reads them, so the page responds to what you play.
+ *   --mx/--my 0–1, where the pointer is in the viewport
+ * Everything below reads them, so the page responds to what you play and to
+ * where you're looking. Four numbers on the root element, no per-element
+ * JavaScript — the compositor does the rest.
  */
 @property --energy {
   syntax: '<number>';
@@ -45,9 +50,23 @@
   initial-value: 0;
 }
 
+@property --mx {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0.5;
+}
+
+@property --my {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0.4;
+}
+
 :root {
   --energy: 0;
   --scroll: 0;
+  --mx: 0.5;
+  --my: 0.4;
 }
 
 * {
@@ -194,6 +213,40 @@ body {
   animation: sweep 80s linear infinite;
 }
 
+/*
+ * A soft light that follows the pointer. It reads --mx/--my straight off the
+ * root, so there is no per-element JS and nothing to tear down — the layer is
+ * simply a gradient whose centre is two numbers.
+ */
+.backdrop-spot {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    26rem 26rem at calc(var(--mx) * 100%) calc(var(--my) * 100%),
+    color-mix(in oklab, var(--color-ember) 9%, transparent),
+    transparent 68%
+  );
+  opacity: calc(0.55 + var(--energy) * 0.45);
+  transition: opacity 0.4s ease;
+}
+
+/* Fine horizontal scanlines. Almost invisible, but they give the dark a
+   surface — the difference between a screen and a hole. */
+.backdrop-scan {
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.014) 0 1px,
+    transparent 1px 3px
+  );
+  mask-image: radial-gradient(
+    ellipse 90% 70% at 50% 40%,
+    #000 30%,
+    transparent 80%
+  );
+}
+
 @keyframes drift {
   from {
     transform: translate3d(-1.5%, 1%, 0) scale(1.02);
@@ -304,6 +357,27 @@ body {
   animation: rise 1.1s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/*
+ * Same entrance as .rise, but without the clipping parent — for controls,
+ * whose focus rings and hover fills must not be cut off by an overflow box.
+ */
+.lift {
+  animation: lift 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes lift {
+  from {
+    transform: translateY(18px);
+    opacity: 0;
+    filter: blur(4px);
+  }
+  to {
+    transform: none;
+    opacity: 1;
+    filter: none;
+  }
+}
+
 @keyframes rise {
   from {
     transform: translateY(110%) rotate(2deg);
@@ -316,15 +390,67 @@ body {
 }
 
 /*
- * The name, in script. Scripts connect, so this is never split into per-letter
- * spans — the joins would come apart. It rises as one line instead.
+ * The name. A high-contrast display serif set in its italic — the cut a
+ * masthead uses, not a signature typeface pretending to be handwriting. Tight
+ * leading so the two lines lock together as one block.
  */
 .signature {
-  font-family: var(--font-script);
+  font-family: var(--font-serif);
+  font-style: italic;
   font-weight: 400;
-  /* Brush scripts carry ascenders and descenders well past the em box. */
-  line-height: 1.15;
-  letter-spacing: 0;
+  /*
+   * 1.14, not the tighter number the design wants, because .rise clips to the
+   * line box: Instrument Serif Italic carries ink to 0.22em below the baseline
+   * (the j in Prithwijit), and anything under ~1.12 cuts the tail off inside
+   * the mask. The lines are pulled back together with a negative margin
+   * instead, which overlaps the boxes without shrinking either one.
+   */
+  line-height: 1.14;
+  letter-spacing: -0.015em;
+}
+
+/*
+ * A slow specular sweep across the name, as if the light in the room moved.
+ * Painted as a moving highlight inside the text itself via background-clip, so
+ * there is no overlay element and nothing to mask.
+ */
+.sheen {
+  /* The base layer is named explicitly, never currentColor: this element sets
+     color: transparent for the clip, and currentColor would resolve to that. */
+  background:
+    linear-gradient(
+        100deg,
+        transparent 38%,
+        color-mix(in oklab, var(--color-ember) 55%, var(--color-ink)) 48%,
+        transparent 58%
+      )
+      no-repeat,
+    linear-gradient(var(--color-ink), var(--color-ink));
+  background-size:
+    260% 100%,
+    100% 100%;
+  background-position:
+    -60% 0,
+    0 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: sheen 7s cubic-bezier(0.5, 0, 0.2, 1) 1.6s infinite;
+}
+
+@keyframes sheen {
+  0%,
+  55% {
+    background-position:
+      -60% 0,
+      0 0;
+  }
+  85%,
+  100% {
+    background-position:
+      160% 0,
+      0 0;
+  }
 }
 
 /* The hero name, ghosted behind the strings — and it swells when you play. */
@@ -339,6 +465,304 @@ body {
   color: transparent;
   transform: translateY(-50%) scale(calc(1 + var(--energy) * 0.035));
   filter: brightness(calc(1 + var(--energy) * 1.6));
+}
+
+/* ---------------------------------------------------------------------- */
+/* Page furniture                                                          */
+/* ---------------------------------------------------------------------- */
+
+/*
+ * A ring that trails the cursor. It costs no JavaScript of its own — it reads
+ * the same --mx/--my the spotlight does, and because ambience.ts eases those
+ * toward the pointer rather than snapping, the ring lags the hand by a few
+ * frames on its own. plus-lighter keeps it legible over both the dark ground
+ * and the ember glow without ever inverting the text underneath.
+ *
+ * Only for a real mouse: a finger has no hover to track, and a ring chasing a
+ * tap is nonsense.
+ */
+.cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 90;
+  display: none;
+  width: 26px;
+  height: 26px;
+  border: 1px solid color-mix(in oklab, var(--color-ember) 55%, transparent);
+  border-radius: 50%;
+  pointer-events: none;
+  mix-blend-mode: plus-lighter;
+  translate: calc(var(--mx) * 100vw - 50%) calc(var(--my) * 100svh - 50%);
+  transition:
+    scale 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.3s ease,
+    border-color 0.3s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cursor-ring {
+    display: block;
+  }
+}
+
+/* Opens up over anything you can actually act on. :has() means the ring knows
+   what the pointer is over without a single event listener. */
+body:has(a:hover, button:hover, [role='button']:hover) .cursor-ring {
+  scale: 1.9;
+  opacity: 0.5;
+  border-color: color-mix(in oklab, var(--color-signal) 70%, transparent);
+}
+
+/* Over the strings it gets out of the way — that surface has its own cursor. */
+body:has(.pick-cursor:hover) .cursor-ring {
+  scale: 0.4;
+  opacity: 0.35;
+}
+
+/* Scroll progress, hairline, across the very top. Reads --scroll, so it is
+   already smoothed by the same easing the backdrop uses. */
+.progress {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 50;
+  height: 1px;
+  pointer-events: none;
+  transform-origin: left center;
+  transform: scaleX(var(--scroll));
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-ember) 40%,
+    var(--color-signal)
+  );
+  box-shadow: 0 0 12px color-mix(in oklab, var(--color-ember) 60%, transparent);
+}
+
+/*
+ * The section index, set enormous and nearly invisible behind its heading.
+ * Editorial furniture: it gives each section a landmark you feel more than
+ * read, and costs one absolutely-positioned span.
+ */
+.numeral {
+  position: absolute;
+  top: -0.34em;
+  right: 2vw;
+  z-index: -1;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: clamp(7rem, 17vw, 15rem);
+  line-height: 1;
+  color: color-mix(in oklab, var(--color-ink) 4%, transparent);
+  user-select: none;
+  transition:
+    transform 1.4s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 1.4s ease;
+}
+
+@media (scripting: enabled) {
+  .numeral {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  [data-seen='true'] .numeral {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * The venue marquee: a strip of running text between movements. Duplicated in
+ * the markup so the loop is seamless at exactly -50%.
+ */
+.marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 42s linear infinite;
+}
+
+.marquee-mask {
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 8%,
+    #000 92%,
+    transparent
+  );
+}
+
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/*
+ * The timeline spine down the tour dates, drawn top-to-bottom as the section
+ * arrives.
+ */
+.spine {
+  transform: scaleY(0);
+  transform-origin: top center;
+  transition: transform 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.2s;
+}
+
+[data-seen='true'] .spine {
+  transform: scaleY(1);
+}
+
+/* A link whose rule wipes in from the left rather than fading. */
+.wipe {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 0% 1px;
+  transition: background-size 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.wipe:hover,
+.wipe:focus-visible {
+  background-size: 100% 1px;
+}
+
+/*
+ * The quiet button: résumé, strum-all, anything secondary. A hairline ring
+ * that warms on approach, and a fill that rises from the bottom edge.
+ */
+.quiet-btn {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition:
+    color 0.3s ease,
+    border-color 0.3s ease;
+}
+
+.quiet-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in oklab, var(--color-ember) 14%, transparent)
+  );
+  transform: translateY(101%);
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.quiet-btn:hover::before,
+.quiet-btn:focus-visible::before {
+  transform: translateY(0);
+}
+
+/* The download arrow drops a hair on hover, then settles. */
+.quiet-btn .drop {
+  display: inline-block;
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.quiet-btn:hover .drop,
+.quiet-btn:focus-visible .drop {
+  transform: translateY(3px);
+}
+
+/* A dot that breathes — used wherever something is live. */
+.pulse {
+  animation: pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 8px var(--color-ember);
+  }
+  50% {
+    opacity: 0.45;
+    box-shadow: 0 0 2px var(--color-ember);
+  }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Surfaces                                                                */
+/* ---------------------------------------------------------------------- */
+
+/*
+ * What makes a dark panel look machined rather than flat: a single hairline of
+ * light along the top edge, where a real bevel would catch the room. One inset
+ * shadow, plus a gradient so the panel is fractionally lighter at the top than
+ * the bottom.
+ */
+.surface {
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.035),
+    transparent 45%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/*
+ * A light that tracks the pointer inside the panel itself, from --px/--py set
+ * by lib/usePointerLight. Layered under the content but over the background,
+ * so the panel appears lit rather than tinted.
+ */
+.surface-light::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  opacity: 0;
+  background: radial-gradient(
+    9rem 9rem at var(--px, 50%) var(--py, 50%),
+    color-mix(in oklab, var(--color-ember) 18%, transparent),
+    transparent 70%
+  );
+  transition: opacity 0.35s ease;
+}
+
+.surface-light:hover::after,
+.surface-light:focus-visible::after {
+  opacity: 1;
+}
+
+/*
+ * A hairline that is brightest in the middle and fades at both ends, instead of
+ * a rule that stops dead. Used where a plain border would look cheap.
+ */
+.hairline {
+  border: 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-line) 15%,
+    color-mix(in oklab, var(--color-ink) 22%, transparent) 50%,
+    var(--color-line) 85%,
+    transparent
+  );
+}
+
+/* Rows that sweep a warm wash left-to-right under the pointer. */
+.row-sweep {
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--color-ember) 7%, transparent),
+    transparent 70%
+  );
+  background-repeat: no-repeat;
+  background-size: 0% 100%;
+  transition: background-size 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.row-sweep:hover,
+.row-sweep:focus-visible {
+  background-size: 100% 100%;
 }
 
 /* Anything magnetic eases back to rest on its own. */
@@ -360,8 +784,28 @@ body {
     animation: none;
   }
   .backdrop-glow,
-  .backdrop-sweep {
+  .backdrop-sweep,
+  .marquee,
+  .sheen,
+  .pulse {
     animation: none;
+  }
+  /* The sheen paints the text via background-clip; with the animation off it
+     would leave the name transparent, so hand the colour back. */
+  .sheen {
+    background: none;
+    color: var(--color-ink);
+    -webkit-text-fill-color: var(--color-ink);
+  }
+  .numeral,
+  .spine {
+    opacity: 1;
+    transform: none;
+  }
+  /* A ring chasing the cursor is exactly the kind of motion this setting is
+     asking us to stop doing. */
+  .cursor-ring {
+    display: none !important;
   }
   *,
   *::before,

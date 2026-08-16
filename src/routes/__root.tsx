@@ -30,6 +30,32 @@ export const Route = createRootRoute({
         rel: 'stylesheet',
         href: appCss,
       },
+      // The .ico carries 16/32/48 so the browser picks a size rather than
+      // downsampling one badly; the PNGs cover everything that prefers them.
+      { rel: 'icon', href: '/favicon.ico', sizes: '48x48' },
+      {
+        rel: 'icon',
+        type: 'image/png',
+        sizes: '32x32',
+        href: '/favicon-32.png',
+      },
+      {
+        rel: 'icon',
+        type: 'image/png',
+        sizes: '96x96',
+        href: '/favicon-96.png',
+      },
+      {
+        rel: 'icon',
+        type: 'image/png',
+        sizes: '192x192',
+        href: '/favicon-192.png',
+      },
+      {
+        rel: 'apple-touch-icon',
+        sizes: '180x180',
+        href: '/apple-touch-icon.png',
+      },
     ],
   }),
   notFoundComponent: NotFound,
@@ -42,15 +68,15 @@ function NotFound() {
       <p className="font-mono text-xs tracking-[0.28em] text-ember uppercase">
         404
       </p>
-      <h1 className="mt-5 font-display text-[clamp(2.5rem,10vw,7rem)] leading-[0.9]">
+      <h1 className="signature mt-5 text-[clamp(3rem,11vw,7.5rem)]">
         Dead string.
       </h1>
-      <p className="mt-6 max-w-md font-display text-xl text-muted">
+      <p className="mt-6 max-w-md text-xl text-muted">
         Nothing rings at this address.
       </p>
       <a
         href="/"
-        className="mt-10 w-fit font-mono text-xs tracking-[0.2em] text-ember uppercase hover:underline hover:underline-offset-4"
+        className="wipe mt-10 w-fit font-mono text-xs tracking-[0.2em] text-ember uppercase"
       >
         ← Back to the top string
       </a>
@@ -69,8 +95,12 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           <div className="backdrop-energy">
             <div className="backdrop-sweep" />
             <div className="backdrop-glow" />
+            <div className="backdrop-spot" />
           </div>
+          <div className="backdrop-scan" />
         </div>
+        <div className="progress" aria-hidden />
+        <div className="cursor-ring" aria-hidden />
         {children}
         <Scripts />
       </body>
