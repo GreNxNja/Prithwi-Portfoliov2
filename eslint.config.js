@@ -15,6 +15,15 @@ export default [
     },
   },
   {
-    ignores: ['eslint.config.js', 'prettier.config.js'],
+    // Build output is generated, isn't in any tsconfig project, and makes the
+    // type-aware parser fail outright rather than just reporting on it.
+    ignores: [
+      'eslint.config.js',
+      'prettier.config.js',
+      'dist/**',
+      '.output/**',
+      '.vercel/**',
+      '.nitro/**',
+    ],
   },
 ]

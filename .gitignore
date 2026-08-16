@@ -1,0 +1,27 @@
+node_modules
+
+# Build output. Nitro writes .output locally and .vercel/output on Vercel;
+# dist/ is what Start emits before Nitro packages it.
+dist
+.output
+.vercel
+.nitro
+
+# Vite / TanStack caches
+.vite
+node_modules/.vite
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Editors and OS
+.DS_Store
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+.idea
+.vscode/*
+!.vscode/extensions.json
