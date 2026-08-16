@@ -91,8 +91,11 @@ export function startAmbience() {
     root.style.setProperty('--scroll', scroll.toFixed(4))
 
     if (!tracks) return
-    // Slower than the scroll easing on purpose: the light lags the hand.
-    const lag = Math.min(1, dt * 3.5)
+    // The spotlight still trails the hand — it's a wide, soft light and looking
+    // glued to the cursor would read as cheap. But this is only the backdrop;
+    // the cursor ring keeps its own, much faster position in CursorRing, so
+    // nothing hard-edged is waiting on this easing.
+    const lag = 1 - Math.exp(-7 * dt)
     mx += (targetX - mx) * lag
     my += (targetY - my) * lag
     root.style.setProperty('--mx', mx.toFixed(4))

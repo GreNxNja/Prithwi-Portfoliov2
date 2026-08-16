@@ -100,7 +100,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           <div className="backdrop-scan" />
         </div>
         <div className="progress" aria-hidden />
-        <div className="cursor-ring" aria-hidden />
         {children}
         <Scripts />
       </body>

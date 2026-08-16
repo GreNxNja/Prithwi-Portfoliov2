@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import type { ReactNode } from 'react'
+import { CursorRing } from '#/components/CursorRing'
 import { Frame } from '#/components/Frame'
 import { Instrument } from '#/components/Instrument'
 import { Marquee } from '#/components/Marquee'
@@ -97,6 +98,7 @@ function Home() {
   return (
     <main>
       <Frame />
+      <CursorRing />
       <Rail />
 
       {/* ---------------------------------------------------------------- */}

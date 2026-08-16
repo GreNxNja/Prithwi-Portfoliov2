@@ -493,11 +493,19 @@ body {
   border-radius: 50%;
   pointer-events: none;
   mix-blend-mode: plus-lighter;
-  translate: calc(var(--mx) * 100vw - 50%) calc(var(--my) * 100svh - 50%);
+  /* Hidden until the pointer first moves, so it never sits parked in the
+     middle of the screen. CursorRing writes the transform. */
+  opacity: 0;
+  /*
+   * Transitions scale and opacity only — never transform. A transition on
+   * transform would fight the per-frame write and add its own delay on top of
+   * the easing, which is exactly how a follower ends up feeling laggy.
+   */
   transition:
     scale 0.3s cubic-bezier(0.22, 1, 0.36, 1),
     opacity 0.3s ease,
     border-color 0.3s ease;
+  will-change: transform;
 }
 
 @media (hover: hover) and (pointer: fine) {
