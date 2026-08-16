@@ -2,19 +2,33 @@ import { useEffect, useRef } from 'react'
 import { isLowPower } from '#/lib/device'
 import { onFrame } from '#/lib/frame'
 
-/**
- * The ring that follows the cursor.
+/*
+ * A critically damped spring, not a lerp.
  *
- * It deliberately does *not* read the --mx/--my the spotlight uses. Those are
- * eased slowly on purpose — a wide, soft light trailing well behind the hand
- * looks intentional, while a hard-edged ring doing the same just looks broken.
- * This keeps its own position and closes most of the gap within a few frames.
+ * Exponential smoothing — x += (target - x) * k — has no velocity continuity.
+ * It lunges the instant the target moves and decays from there, and once it is
+ * fast enough to actually arrive, it arrives *between* pointer events and sits
+ * still until the next one lands. Pointer events are discrete and unevenly
+ * spaced, so that reads as a stutter: the mechanical feel. A slow lerp only
+ * hides it by never catching up.
  *
- * The transform is written straight to this one element rather than through an
- * inherited custom property on :root, which is also the cheaper of the two:
- * a registered inheriting property changing every frame invalidates style for
- * the whole document, where this touches exactly one node.
+ * A spring carries momentum across those gaps. It accelerates out of rest and
+ * decelerates into place instead of stepping, and it is still moving when the
+ * next event arrives, so there is nothing to restart.
+ *
+ * Damping is set to 2·sqrt(stiffness) — critical. Any less and the ring
+ * overshoots and wobbles around the cursor, which looks worse than the stutter
+ * it replaced.
  */
+const STIFFNESS = 1250
+const DAMPING = 2 * Math.sqrt(STIFFNESS)
+/** Speed, in px/s, at which the ring reaches its full stretch. */
+const STRETCH_AT = 2600
+const MAX_STRETCH = 0.16
+/** Fixed substep. Explicit Euler on a spring this stiff goes unstable if it's
+ *  handed a long frame, so integrate in slices regardless of frame length. */
+const STEP = 1 / 240
+
 export function CursorRing() {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -24,39 +38,82 @@ export function CursorRing() {
     if (isLowPower()) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
 
-    let x = window.innerWidth / 2
-    let y = window.innerHeight / 2
-    let tx = x
-    let ty = y
+    let x = 0
+    let y = 0
+    let vx = 0
+    let vy = 0
+    let tx = 0
+    let ty = 0
     let seen = false
+    let debt = 0
 
     const onMove = (e: PointerEvent) => {
       tx = e.clientX
       ty = e.clientY
       if (seen) return
-      // Jump to the pointer the first time rather than sliding in from the
-      // middle of the screen.
+      // Start on the cursor rather than sliding in from the corner.
       seen = true
       x = tx
       y = ty
       el.style.opacity = '1'
     }
 
-    window.addEventListener('pointermove', onMove, { passive: true })
+    /*
+     * pointerrawupdate fires at the pointer's own sampling rate instead of
+     * being coalesced to one event per frame, so the spring is chasing a target
+     * that is genuinely current. It's the difference between the ring following
+     * the mouse and following a once-per-frame snapshot of it.
+     */
+    const raw = 'onpointerrawupdate' in window
+    const event = raw ? 'pointerrawupdate' : 'pointermove'
+    window.addEventListener(event, onMove as EventListener, { passive: true })
 
     const stop = onFrame((dt) => {
       if (!seen) return
-      // Frame-rate independent: an exponential approach, so the ring covers the
-      // same fraction of the gap per second whether the display runs at 60Hz or
-      // 144Hz. min(1, dt * rate) would make it stiffer on a fast display.
-      const k = 1 - Math.exp(-34 * dt)
-      x += (tx - x) * k
-      y += (ty - y) * k
-      el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0) translate(-50%, -50%)`
+
+      // A backgrounded tab hands back one enormous frame on return; cap it so
+      // the ring resumes from where it was rather than catapulting.
+      debt = Math.min(debt + dt, 0.1)
+
+      while (debt >= STEP) {
+        vx += ((tx - x) * STIFFNESS - vx * DAMPING) * STEP
+        vy += ((ty - y) * STIFFNESS - vy * DAMPING) * STEP
+        x += vx * STEP
+        y += vy * STEP
+        debt -= STEP
+      }
+
+      /*
+       * Squash and stretch along the direction of travel — the ring draws out
+       * when it's moving and settles round when it stops. This is the part
+       * that stops it reading as a shape being repositioned and starts it
+       * reading as a thing in motion.
+       *
+       * It leans on the spring's velocity rather than a difference between
+       * pointer samples. Raw pointer velocity is noisy and would make the
+       * deformation flicker; the integrated velocity is continuous by
+       * construction, so the stretch eases in and out on its own.
+       */
+      const speed = Math.hypot(vx, vy)
+      const s = Math.min(MAX_STRETCH, speed / STRETCH_AT)
+      const angle = Math.atan2(vy, vx)
+
+      // Full precision, no rounding: the compositor positions on subpixels, and
+      // quantising to a tenth of a pixel puts a stair back into the motion this
+      // whole component exists to smooth out.
+      //
+      // translate(-50%,-50%) lands the ring's centre on the cursor first, so
+      // the rotate/scale that follow pivot about that centre. Undoing the
+      // rotation afterwards keeps the stretch axis aligned to travel while
+      // leaving the ring itself unrotated — on a circle a leftover rotation is
+      // invisible, but it would skew the hover scale.
+      el.style.transform =
+        `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) ` +
+        `rotate(${angle}rad) scale(${1 + s}, ${1 - s * 0.65}) rotate(${-angle}rad)`
     })
 
     return () => {
-      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener(event, onMove as EventListener)
       stop()
     }
   }, [])
