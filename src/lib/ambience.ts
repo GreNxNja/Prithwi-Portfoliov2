@@ -27,8 +27,12 @@ import { onFrame } from '#/lib/frame'
  * getComputedStyle in a frame loop to read a value we already have in hand.
  */
 let currentScroll = 0
+let currentVelocity = 0
 
 export const getScroll = () => currentScroll
+
+/** Signed scroll velocity, roughly -1..1. Positive is downward. */
+export const getVelocity = () => currentVelocity
 
 export function startAmbience() {
   if (typeof window === 'undefined') return () => {}
@@ -39,6 +43,8 @@ export function startAmbience() {
   let bins: Uint8Array | null = null
   let energy = 0
   let scroll = 0
+  let velocity = 0
+  let lastY = window.scrollY
   let mx = 0.5
   let my = 0.4
   let targetX = 0.5
@@ -84,11 +90,30 @@ export function startAmbience() {
     scroll += (next - scroll) * Math.min(1, dt * 6)
     currentScroll = scroll
 
+    /*
+     * How hard the page is being thrown, signed, roughly -1..1.
+     *
+     * Divided by dt so it's pixels per second rather than pixels per frame —
+     * otherwise the same flick would read as twice the velocity on a 30Hz
+     * display. Eased asymmetrically: it rises fast enough to catch a flick and
+     * falls slowly, so effects hung off it decay instead of snapping off the
+     * instant the scroll stops.
+     */
+    const px = window.scrollY - lastY
+    lastY = window.scrollY
+    const rawVel = dt > 0 ? Math.max(-1, Math.min(1, px / dt / 2600)) : 0
+    velocity +=
+      (rawVel - velocity) *
+      Math.min(1, dt * (Math.abs(rawVel) > Math.abs(velocity) ? 14 : 4))
+    currentVelocity = velocity
+
     root.style.setProperty(
       '--energy',
       (calm ? target * 0.3 : energy).toFixed(4),
     )
     root.style.setProperty('--scroll', scroll.toFixed(4))
+    root.style.setProperty('--vel', velocity.toFixed(4))
+    root.style.setProperty('--vel-abs', Math.abs(velocity).toFixed(4))
 
     if (!tracks) return
     // The spotlight still trails the hand — it's a wide, soft light and looking

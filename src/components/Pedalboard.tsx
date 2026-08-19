@@ -41,7 +41,7 @@ export function Pedalboard() {
                   wake()
                   pluck(note(r * 3 + i), { velocity: 0.18, position: 0.35 })
                 }}
-                className="group surface surface-light relative isolate w-[9.5rem] overflow-hidden rounded-xl border border-line bg-surface px-4 pt-4 pb-3 text-left transition-all duration-300 hover:-translate-y-1.5 hover:border-ember/50 hover:shadow-[0_14px_36px_-14px_var(--color-ember)] focus-visible:-translate-y-1.5 focus-visible:border-ember/50 focus-visible:outline-none"
+                className="group surface surface-light tilt relative isolate w-[9.5rem] overflow-hidden rounded-xl border border-line bg-surface px-4 pt-4 pb-3 text-left hover:border-ember/50 hover:shadow-[0_18px_44px_-16px_var(--color-ember)] focus-visible:border-ember/50 focus-visible:outline-none"
               >
                 {/* A sheen across the enclosure, the way light catches an
                     anodised box when you lean over the board. */}

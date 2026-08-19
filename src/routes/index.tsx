@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import type { ReactNode } from 'react'
+import { Band } from '#/components/Band'
 import { CursorRing } from '#/components/CursorRing'
 import { Frame } from '#/components/Frame'
 import { Instrument } from '#/components/Instrument'
@@ -11,6 +12,8 @@ import { Resume } from '#/components/Resume'
 import { Reveal } from '#/components/Reveal'
 import { Scope } from '#/components/Scope'
 import { Scramble } from '#/components/Scramble'
+import { ScrollText } from '#/components/ScrollText'
+import { Shockwave } from '#/components/Shockwave'
 import { Setlist } from '#/components/Setlist'
 import { Tour } from '#/components/Tour'
 import { ABOUT, FACTS, ME, SIGNALS, TICKER } from '#/data/content'
@@ -72,7 +75,9 @@ function Section({
           </p>
         )}
       </Reveal>
-      <div className="mt-10 sm:mt-12">{children}</div>
+      {/* Only the body leans on a hard scroll — skewing the section itself
+          would shear the edge rules and the ghosted numeral with it. */}
+      <div className="lean mt-10 sm:mt-12">{children}</div>
     </section>
   )
 }
@@ -99,6 +104,7 @@ function Home() {
     <main>
       <Frame />
       <CursorRing />
+      <Shockwave />
       <Rail />
 
       {/* ---------------------------------------------------------------- */}
@@ -123,7 +129,7 @@ function Home() {
             </span>
             <span className="rise -mt-[0.16em] block pl-[0.06em]">
               <span
-                className="bg-gradient-to-b from-muted to-muted/35 bg-clip-text text-transparent"
+                className="aberrate text-muted"
                 style={{ animationDelay: '280ms' }}
               >
                 Ghosh
@@ -175,21 +181,22 @@ function Home() {
       <Section id="notes" index="01" title="Liner Notes">
         <div className="grid gap-12 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:gap-20">
           <div className="max-w-2xl space-y-7">
-            {ABOUT.map((p, i) => (
-              <Reveal key={i} delay={i * 110}>
-                <p
-                  className={
-                    // The opening paragraph carries the section, so it speaks
-                    // in the display serif — the same voice as the name.
-                    i === 0
-                      ? 'font-serif text-3xl leading-[1.15] text-ink sm:text-4xl'
-                      : 'text-base leading-relaxed text-ink/70'
-                  }
-                >
-                  {p}
-                </p>
-              </Reveal>
-            ))}
+            {ABOUT.map((p, i) =>
+              // The opening paragraph carries the section, so it speaks in the
+              // display serif — the same voice as the name — and lights up as
+              // you read toward it.
+              i === 0 ? (
+                <Reveal key={i}>
+                  <ScrollText className="font-serif text-3xl leading-[1.15] sm:text-4xl">
+                    {p}
+                  </ScrollText>
+                </Reveal>
+              ) : (
+                <Reveal key={i} delay={i * 110}>
+                  <p className="text-base leading-relaxed text-ink/70">{p}</p>
+                </Reveal>
+              ),
+            )}
           </div>
 
           <Reveal delay={160}>
@@ -243,6 +250,9 @@ function Home() {
       >
         <Pedalboard />
       </Section>
+
+      {/* ---------------------------------------------------------------- */}
+      <Band text="Prithwijit Ghosh" className="-my-4" />
 
       {/* ---------------------------------------------------------------- */}
       <Section id="encore" index="05" title="Encore">
