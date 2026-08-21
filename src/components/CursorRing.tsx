@@ -22,9 +22,6 @@ import { onFrame } from '#/lib/frame'
  */
 const STIFFNESS = 1250
 const DAMPING = 2 * Math.sqrt(STIFFNESS)
-/** Speed, in px/s, at which the ring reaches its full stretch. */
-const STRETCH_AT = 2600
-const MAX_STRETCH = 0.16
 /** Fixed substep. Explicit Euler on a spring this stiff goes unstable if it's
  *  handed a long frame, so integrate in slices regardless of frame length. */
 const STEP = 1 / 240
@@ -46,6 +43,7 @@ export function CursorRing() {
     let ty = 0
     let seen = false
     let debt = 0
+    let settled = false
 
     const onMove = (e: PointerEvent) => {
       tx = e.clientX
@@ -83,33 +81,30 @@ export function CursorRing() {
         debt -= STEP
       }
 
-      /*
-       * Squash and stretch along the direction of travel — the ring draws out
-       * when it's moving and settles round when it stops. This is the part
-       * that stops it reading as a shape being repositioned and starts it
-       * reading as a thing in motion.
-       *
-       * It leans on the spring's velocity rather than a difference between
-       * pointer samples. Raw pointer velocity is noisy and would make the
-       * deformation flicker; the integrated velocity is continuous by
-       * construction, so the stretch eases in and out on its own.
-       */
-      const speed = Math.hypot(vx, vy)
-      const s = Math.min(MAX_STRETCH, speed / STRETCH_AT)
-      const angle = Math.atan2(vy, vx)
+      // Settled: no distance left to close and no speed left to shed. Writing
+      // the same transform sixty times a second while the mouse sits still is
+      // pure cost, so stop until it moves again.
+      if (
+        Math.abs(tx - x) < 0.05 &&
+        Math.abs(ty - y) < 0.05 &&
+        Math.hypot(vx, vy) < 1
+      ) {
+        x = tx
+        y = ty
+        vx = 0
+        vy = 0
+        if (settled) return
+        settled = true
+      } else {
+        settled = false
+      }
 
-      // Full precision, no rounding: the compositor positions on subpixels, and
-      // quantising to a tenth of a pixel puts a stair back into the motion this
-      // whole component exists to smooth out.
-      //
-      // translate(-50%,-50%) lands the ring's centre on the cursor first, so
-      // the rotate/scale that follow pivot about that centre. Undoing the
-      // rotation afterwards keeps the stretch axis aligned to travel while
-      // leaving the ring itself unrotated — on a circle a leftover rotation is
-      // invisible, but it would skew the hover scale.
-      el.style.transform =
-        `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) ` +
-        `rotate(${angle}rad) scale(${1 + s}, ${1 - s * 0.65}) rotate(${-angle}rad)`
+      // Position only. There was squash-and-stretch here, scaling the ring
+      // along its direction of travel — on paper it makes a follower feel
+      // alive, in practice a ring that is constantly an ellipse just reads as
+      // a cursor that is broken. A circle that stays a circle is the whole
+      // point of the shape.
+      el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%)`
     })
 
     return () => {

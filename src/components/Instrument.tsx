@@ -81,19 +81,18 @@ export function Instrument() {
     /*
      * The per-frame budget, sized to the device.
      *
-     * At the desktop settings this loop strokes six strings three times over at
-     * 120 segments each, every one of them with a shadowBlur — and canvas
-     * shadows are the single most expensive thing here, since the whole path
-     * gets rasterised twice and blurred. That is fine on a laptop and is not
-     * fine on a phone. Dropping to one pass at 64 segments with no shadow keeps
-     * the shape and the motion; what's lost is the glow bloom, which a phone
-     * was rendering at a stuttering frame rate anyway.
+     * Canvas shadows are the single most expensive thing in this loop — the
+     * whole path is rasterised twice and blurred — so the trail count and the
+     * segment count are what everything else is paid out of. Two passes at 88
+     * segments is indistinguishable from three at 120 once the string is
+     * actually moving, and costs a bit over half as much. A phone drops to one
+     * flat pass with no glow at all.
      */
     const lean = isLowPower()
     /** Afterimages behind a moving string — why it reads as blur, not a wire. */
-    const TRAILS = lean ? 1 : 3
-    const SEGMENTS = lean ? 64 : 120
-    const MAX_SPARKS = lean ? 36 : 130
+    const TRAILS = lean ? 1 : 2
+    const SEGMENTS = lean ? 64 : 88
+    const MAX_SPARKS = lean ? 36 : 80
     const GLOW = !lean
 
     const strings: Array<StringState> = TUNING.map(() => ({
@@ -400,7 +399,12 @@ export function Instrument() {
               : `rgba(${EMBER[0]},${EMBER[1]},${EMBER[2]},${(heat * fade).toFixed(3)})`
           c.lineWidth = def.gauge * (k === 0 ? 1 : 0.8)
           c.lineCap = 'round'
-          if (GLOW && k === 0 && heat > 0.02) {
+          // Canvas shadows rasterise the path twice and blur it, so this is
+          // the most expensive line in the loop. Gate it on a note that is
+          // actually audible rather than on any trace of movement — below
+          // about a quarter heat the glow is invisible against the backdrop
+          // anyway, and that covers most of a note's decay.
+          if (GLOW && k === 0 && heat > 0.25) {
             c.shadowColor = `rgba(255,159,69,${heat * 0.85})`
             c.shadowBlur = 10 + heat * 30
           }

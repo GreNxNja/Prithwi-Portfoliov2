@@ -208,12 +208,18 @@ html {
 .backdrop-energy {
   position: absolute;
   inset: 0;
+  /*
+   * Opacity only. This element wraps the blurred glow layers, and a filter
+   * here — hue-rotate and saturate, as it used to have — meant the browser
+   * re-rendered that entire blurred subtree through a filter chain on every
+   * frame that --energy or --scroll moved, which is every frame you scroll.
+   * Opacity is a compositor-only property: the layer is rasterised once and
+   * then just blended. Same read on screen, a fraction of the cost.
+   *
+   * No transition here on purpose: ambience.ts already shapes the attack and
+   * release, and a CSS transition on top would only smear it.
+   */
   opacity: calc(0.6 + var(--energy) * 0.7);
-  /* Warm at the top of the page, cooler through the machine half, warm again. */
-  filter: hue-rotate(calc(var(--scroll) * -20deg))
-    saturate(calc(1 + var(--energy) * 0.7));
-  /* No transition here on purpose: ambience.ts already shapes the attack and
-     release, and a CSS transition on top would only smear it. */
 }
 
 .backdrop-glow {
@@ -235,23 +241,32 @@ html {
       color-mix(in oklab, var(--color-ember) 14%, transparent),
       transparent 70%
     );
-  filter: blur(14px);
+  /* No blur: these are radial gradients, already perfectly smooth. Blurring a
+     gradient spends a full-screen convolution to make smooth things smooth. */
   animation: drift 30s ease-in-out infinite alternate;
 }
 
-/* A slow sweep of light across the room, like a passing headlight. */
+/*
+ * A slow sweep of light across the room, like a passing headlight.
+ *
+ * It used to be a conic gradient inset -40% under filter: blur(60px), rotating
+ * forever — which is a surface half again the size of the screen, re-blurred
+ * every frame it turns, and by a distance no one can perceive at 80s per
+ * revolution. The blur is gone: soft colour stops give the same diffusion for
+ * free, because a gradient is already smooth and blurring it only smears
+ * smoothness onto smoothness.
+ */
 .backdrop-sweep {
   position: absolute;
   inset: -40%;
   background: conic-gradient(
     from 210deg at 50% 50%,
     transparent 0deg,
-    color-mix(in oklab, var(--color-ember) 7%, transparent) 40deg,
-    transparent 110deg,
-    color-mix(in oklab, var(--color-signal) 5%, transparent) 190deg,
-    transparent 260deg
+    color-mix(in oklab, var(--color-ember) 5%, transparent) 55deg,
+    transparent 130deg,
+    color-mix(in oklab, var(--color-signal) 4%, transparent) 200deg,
+    transparent 285deg
   );
-  filter: blur(60px);
   opacity: calc(0.5 + var(--energy) * 0.5);
   animation: sweep 80s linear infinite;
 }
@@ -541,7 +556,11 @@ html {
   border: 1px solid color-mix(in oklab, var(--color-ember) 55%, transparent);
   border-radius: 50%;
   pointer-events: none;
-  mix-blend-mode: plus-lighter;
+  /* No blend mode. plus-lighter promoted this to a layer that had to be
+     re-blended against whatever was beneath it every time it moved, and over
+     the ember glow it brightened unpredictably — the ring changed colour
+     depending on what it was passing over, which is the opposite of a cursor.
+     A plain translucent border is cheaper and behaves the same everywhere. */
   /* Hidden until the pointer first moves, so it never sits parked in the
      middle of the screen. CursorRing writes the transform. */
   opacity: 0;
@@ -636,6 +655,9 @@ body:has(.pick-cursor:hover) .cursor-ring {
   display: flex;
   width: max-content;
   animation: marquee 42s linear infinite;
+  /* Promoted so the per-frame transform is a composite, not a repaint of a
+     strip several viewports wide. */
+  will-change: transform;
 }
 
 .marquee-mask {
@@ -866,6 +888,9 @@ body:has(.pick-cursor:hover) .cursor-ring {
 .band {
   display: flex;
   width: max-content;
+  /* Same reason as .marquee, and more so — this one is outlined type at 11rem,
+     which is genuinely expensive to rasterise even once. */
+  will-change: transform;
   font-family: var(--font-serif);
   font-style: italic;
   font-size: clamp(4rem, 11vw, 11rem);
@@ -909,17 +934,6 @@ body:has(.pick-cursor:hover) .cursor-ring {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-}
-
-/*
- * The page leans into a hard scroll. Kept under two degrees: past that the
- * type visibly shears and the effect stops reading as momentum and starts
- * reading as a bug.
- */
-.lean {
-  transform: skewY(calc(var(--vel) * 1.15deg));
-  transform-origin: center top;
-  will-change: transform;
 }
 
 /*
@@ -1019,8 +1033,7 @@ body:has(.pick-cursor:hover) .cursor-ring {
   .aberrate {
     text-shadow: none !important;
   }
-  .tilt,
-  .lean {
+  .tilt {
     transform: none !important;
   }
   /* The gradient never advances with the frame loop stopped, so hand the
@@ -1136,11 +1149,6 @@ body:has(.pick-cursor:hover) .cursor-ring {
   /* The JS marquee bails on touch, so hand the CSS loop back. */
   .marquee {
     animation: marquee 42s linear infinite;
-  }
-
-  /* Skewing the whole body of every section, per frame, on a touch fling. No. */
-  .lean {
-    transform: none;
   }
 
   /* The band's driver bails too. Rather than leave it frozen, run it on the

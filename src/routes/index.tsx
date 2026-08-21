@@ -75,9 +75,7 @@ function Section({
           </p>
         )}
       </Reveal>
-      {/* Only the body leans on a hard scroll — skewing the section itself
-          would shear the edge rules and the ghosted numeral with it. */}
-      <div className="lean mt-10 sm:mt-12">{children}</div>
+      <div className="mt-10 sm:mt-12">{children}</div>
     </section>
   )
 }

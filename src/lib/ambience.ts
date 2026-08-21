@@ -62,6 +62,24 @@ export function startAmbience() {
   }
   if (tracks) window.addEventListener('pointermove', onMove, { passive: true })
 
+  /*
+   * These are inherited custom properties on the root element, so every write
+   * invalidates style for the entire document — six of them per frame is six
+   * whole-document invalidations whether or not anything moved.
+   *
+   * So: quantise, then only write on change. Three decimals is finer than any
+   * of these can be seen at (a thousandth of the viewport is sub-pixel), and
+   * it means a still pointer, a settled scroll and a silent instrument cost
+   * nothing at all rather than costing the same as motion.
+   */
+  const last: Record<string, string> = {}
+  const write = (name: string, value: number) => {
+    const next = value.toFixed(3)
+    if (last[name] === next) return
+    last[name] = next
+    root.style.setProperty(name, next)
+  }
+
   const stop = onFrame((dt) => {
     const analyser = getAnalyser()
     let target = 0
@@ -107,13 +125,10 @@ export function startAmbience() {
       Math.min(1, dt * (Math.abs(rawVel) > Math.abs(velocity) ? 14 : 4))
     currentVelocity = velocity
 
-    root.style.setProperty(
-      '--energy',
-      (calm ? target * 0.3 : energy).toFixed(4),
-    )
-    root.style.setProperty('--scroll', scroll.toFixed(4))
-    root.style.setProperty('--vel', velocity.toFixed(4))
-    root.style.setProperty('--vel-abs', Math.abs(velocity).toFixed(4))
+    write('--energy', calm ? target * 0.3 : energy)
+    write('--scroll', scroll)
+    write('--vel', velocity)
+    write('--vel-abs', Math.abs(velocity))
 
     if (!tracks) return
     // The spotlight still trails the hand — it's a wide, soft light and looking
@@ -123,8 +138,8 @@ export function startAmbience() {
     const lag = 1 - Math.exp(-7 * dt)
     mx += (targetX - mx) * lag
     my += (targetY - my) * lag
-    root.style.setProperty('--mx', mx.toFixed(4))
-    root.style.setProperty('--my', my.toFixed(4))
+    write('--mx', mx)
+    write('--my', my)
   })
 
   return () => {

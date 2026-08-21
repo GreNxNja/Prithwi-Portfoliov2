@@ -27,7 +27,10 @@ export function Scope({ height = 64 }: { height?: number }) {
      * phone take every third sample and drop the glow.
      */
     const lean = isLowPower()
-    const STEP = lean ? 3 : 1
+    // Even on a desktop this is ~1024 samples across a few hundred CSS pixels:
+    // three or four per pixel, all of them paid for. Every other one is still
+    // finer than the display can resolve.
+    const STEP = lean ? 3 : 2
 
     const resize = () => {
       const dpr = Math.min(lean ? 1.5 : 2, window.devicePixelRatio || 1)
@@ -77,7 +80,7 @@ export function Scope({ height = 64 }: { height?: number }) {
       c.globalCompositeOperation = 'lighter'
       if (!lean) {
         c.shadowColor = 'rgba(255,159,69,0.55)'
-        c.shadowBlur = 10
+        c.shadowBlur = 6
       }
       trace(1, 0.7, 1.3)
       trace(-1, 0.22, 1) // the mirror

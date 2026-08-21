@@ -33,25 +33,54 @@ export function ScrollText({
     if (isLowPower()) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
 
+    /*
+     * The block's distance from the top of the document, cached. Calling
+     * getBoundingClientRect in the frame loop forces a synchronous layout on
+     * every single frame — the browser has to flush pending style and geometry
+     * before it can answer — and doing that alongside everything else the loop
+     * writes is what turns a smooth page into a stuttering one.
+     *
+     * Page position only changes when the layout does, so measure it on resize
+     * instead and derive the rest from scrollY, which is free to read.
+     */
+    let top = 0
+    const remeasure = () => {
+      top = el.getBoundingClientRect().top + window.scrollY
+    }
+
+    let lastP = ''
     const measure = () => {
-      const box = el.getBoundingClientRect()
       // Fully lit by the time the block reaches the upper third, still dark
       // when it's below the fold. Reading position, not scroll position, so it
       // behaves the same on a tall monitor as on a short laptop.
+      const viewportTop = top - window.scrollY
       const start = window.innerHeight * 0.92
       const end = window.innerHeight * 0.34
-      const p = (start - box.top) / (start - end)
-      el.style.setProperty('--p', Math.max(0, Math.min(1, p)).toFixed(3))
+      const p = (start - viewportTop) / (start - end)
+      const next = Math.max(0, Math.min(1, p)).toFixed(2)
+      // Repainting text through a clipped gradient is not cheap; skip it
+      // entirely on the frames where the value rounds to what it already was.
+      if (next === lastP) return
+      lastP = next
+      el.style.setProperty('--p', next)
     }
 
     // Seed --p before switching the gradient on. Without this there is a
     // window — first paint, or any tab where the frame loop is throttled —
     // where the fallback of 0 renders the whole paragraph at 22% ink, which
     // looks like broken text rather than text waiting to be read.
+    remeasure()
     measure()
     el.dataset.lit = 'true'
 
-    return onFrame(measure)
+    const ro = new ResizeObserver(remeasure)
+    ro.observe(document.body)
+
+    const stop = onFrame(measure)
+    return () => {
+      ro.disconnect()
+      stop()
+    }
   }, [])
 
   return (
